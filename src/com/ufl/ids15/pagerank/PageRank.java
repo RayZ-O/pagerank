@@ -16,6 +16,7 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.mahout.text.wikipedia.XmlInputFormat;
@@ -28,7 +29,7 @@ public class PageRank {
     public static enum Counter {
 	CONVERGENCE_COUNTER
     }
-    
+
     private static HashMap<String, String> outPaths;
 
     public static void initialFiles (String outBucketName) {
@@ -37,8 +38,7 @@ public class PageRank {
 	String resultPathName = outBucketName + "results/";
 	outPaths.put("outlinkRes", resultPathName + "PageRank.outlink.out");
 	outPaths.put("nRes", resultPathName + "PageRank.n.out");
-	outPaths.put("iter1Res", resultPathName + "PageRank.iter1.out");
-	outPaths.put("iter8Res", resultPathName + "PageRank.iter8.out");
+	outPaths.put("iterRes", resultPathName + "PageRank.out");
 	outPaths.put("job1Tmp", tmpPathName + "job1/");
 	outPaths.put("job2Tmp", tmpPathName + "job2/");
 	outPaths.put("job3Tmp", tmpPathName + "job3/");
@@ -106,7 +106,7 @@ public class PageRank {
     }
 
     // Job4: Calculate PageRank
-    public static void calPageRank(String input, String output) throws Exception {
+    public static boolean calPageRank(String input, String output) throws Exception {
 	JobConf conf = new JobConf(PageRank.class);
 	conf.setJobName("pagerank");
 
@@ -124,10 +124,11 @@ public class PageRank {
 
 	FileInputFormat.setInputPaths(conf, new Path(input));
 	FileOutputFormat.setOutputPath(conf, new Path(output));
-	
+
 	RunningJob job = JobClient.runJob(conf);
 
 	long convergence = job.getCounters().findCounter(Counter.CONVERGENCE_COUNTER).getValue();
+	System.out.println(convergence);
 	if (convergence == Long.parseLong(numberOfPages)) {
 	    return true;
 	} else {
@@ -167,10 +168,10 @@ public class PageRank {
 	FileSystem fs =  FileSystem.get(new URI(args[1]), conf);
 	PageRank.initialFiles(args[1]);
 	//extract wiki and remove redlinks
-	PageRank.parseXml(args[0], outPaths.get("job1Tmp"));
+//	//PageRank.parseXml(args[0], outPaths.get("job1Tmp"));
 	// wiki adjacency graph generation
-	PageRank.getAdjacencyGraph(outPaths.get("job1Tmp"), outPaths.get("job2Tmp"));
-	FileUtil.copyMerge(fs, new Path(outPaths.get("job2Tmp")), fs, new Path(outPaths.get("outlinkRes")), false, conf, "");
+//	PageRank.getAdjacencyGraph(outPaths.get("job1Tmp"), outPaths.get("job2Tmp"));
+//	FileUtil.copyMerge(fs, new Path(outPaths.get("job2Tmp")), fs, new Path(outPaths.get("outlinkRes")), false, conf, "");
 	// total number of pages
 	PageRank.calTotalPages(outPaths.get("outlinkRes"), outPaths.get("job3Tmp"));
 	FileUtil.copyMerge(fs, new Path(outPaths.get("job3Tmp")), fs, new Path(outPaths.get("nRes")), false, conf, "");
@@ -183,14 +184,13 @@ public class PageRank {
 	boolean convergence = false;
 	int count = 0;
 	while(!convergence) {
-	    convergence = PageRank.calPageRank(job4TmpName + "iter" + count, job4TmpName + "iter" + (count + 1));
+	    convergence = PageRank.calPageRank(outPaths.get("job4Tmp") + "iter" + count, outPaths.get("job4Tmp") + "iter" + (count + 1));
 	    count++;
 	}
+	String lastIter = "iter" + (count - 1);
 	// Rank page in the descending order of PageRank
-	PageRank.orderRank(outPaths.get("job4Tmp") + "iter1", outPaths.get("job5Tmp") + "iter1");
-	PageRank.orderRank(outPaths.get("job4Tmp") + "iter8", outPaths.get("job5Tmp") + "iter8");
-	FileUtil.copyMerge(fs, new Path(outPaths.get("job5Tmp") + "iter1"), fs, new Path(outPaths.get("iter1Res")), false, conf, "");
-	FileUtil.copyMerge(fs, new Path(outPaths.get("job5Tmp") + "iter8"), fs, new Path(outPaths.get("iter8Res")), false, conf, "");
+	PageRank.orderRank(outPaths.get("job4Tmp") + lastIter, outPaths.get("job5Tmp") + lastIter);
+	FileUtil.copyMerge(fs, new Path(outPaths.get("job5Tmp") + lastIter), fs, new Path(outPaths.get("iterRes")), false, conf, "");
     }
 }
 
