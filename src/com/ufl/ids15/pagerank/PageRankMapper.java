@@ -17,6 +17,7 @@ Mapper<LongWritable, Text, Text, PageRankGenericWritable> {
     private Text title = new Text();
     private Text adjacency = new Text();
     private Text adjNode = new Text();
+    private Text lastRank = new Text();
     private DoubleWritable rankWritable = new DoubleWritable(0.0);
 
     private static String initialized;
@@ -33,6 +34,7 @@ Mapper<LongWritable, Text, Text, PageRankGenericWritable> {
 
 	int adjBegin = initialized.equals("false") ? 1 : 2;
 	String[] parts = line.split("\t", adjBegin + 1);
+	title.set(parts[0]);
 
 	if (parts.length > 2) {
 	    String[] adjArray = parts[2].split("\t");
@@ -43,8 +45,10 @@ Mapper<LongWritable, Text, Text, PageRankGenericWritable> {
 		rankWritable.set(rank);
 		output.collect(adjNode, new PageRankGenericWritable(rankWritable));
 	    }
+	    lastRank.set("#" + parts[1]);
+	    output.collect(title, new PageRankGenericWritable(lastRank));
 	}
-	title.set(parts[0]);
+
 	adjacency.set(parts.length > adjBegin ? '\t' + parts[adjBegin] : "");
 	output.collect(title, new PageRankGenericWritable(adjacency));
     }

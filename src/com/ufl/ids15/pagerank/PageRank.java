@@ -24,6 +24,11 @@ import org.apache.mahout.text.wikipedia.XmlInputFormat;
 public class PageRank {
     private static String numberOfPages;
     private static String initialized = "false";
+    final private static double epsilon = 1.0e-8;
+    public static enum Counter {
+	CONVERGENCE_COUNTER
+    }
+    
     private static HashMap<String, String> outPaths;
 
     public static void initialFiles (String outBucketName) {
@@ -107,6 +112,7 @@ public class PageRank {
 
 	conf.set("NumberOfPages", numberOfPages);
 	conf.set("Initialized", initialized);
+	conf.set("Epsilon", Double.toString(epsilon));
 
 	conf.setInputFormat(TextInputFormat.class);
 	conf.setOutputFormat(TextOutputFormat.class);
@@ -118,8 +124,15 @@ public class PageRank {
 
 	FileInputFormat.setInputPaths(conf, new Path(input));
 	FileOutputFormat.setOutputPath(conf, new Path(output));
+	
+	RunningJob job = JobClient.runJob(conf);
 
-	JobClient.runJob(conf);
+	long convergence = job.getCounters().findCounter(Counter.CONVERGENCE_COUNTER).getValue();
+	if (convergence == Long.parseLong(numberOfPages)) {
+	    return true;
+	} else {
+	    return false;
+	}
     }
 
     // Job 5: Sort by PageRank and write out Pages >= 5/N
@@ -167,8 +180,11 @@ public class PageRank {
 	// iterative MapReduce
 	PageRank.calPageRank(outPaths.get("outlinkRes"), outPaths.get("job4Tmp") + "iter0");
 	initialized = "true";
-	for (int i = 0; i < 8; i++) {
-	    PageRank.calPageRank(outPaths.get("job4Tmp") + "iter" + i, outPaths.get("job4Tmp") + "iter" + (i + 1));
+	boolean convergence = false;
+	int count = 0;
+	while(!convergence) {
+	    convergence = PageRank.calPageRank(job4TmpName + "iter" + count, job4TmpName + "iter" + (count + 1));
+	    count++;
 	}
 	// Rank page in the descending order of PageRank
 	PageRank.orderRank(outPaths.get("job4Tmp") + "iter1", outPaths.get("job5Tmp") + "iter1");
