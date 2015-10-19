@@ -26,6 +26,7 @@ public class PageRank {
     private static String numberOfPages;
     private static String initialized = "false";
     final private static double epsilon = 1.0e-8;
+    private static long oldCount = 1;
     public static enum Counter {
 	CONVERGENCE_COUNTER
     }
@@ -104,7 +105,6 @@ public class PageRank {
 
 	JobClient.runJob(conf);
     }
-
     // Job4: Calculate PageRank
     public static boolean calPageRank(String input, String output) throws Exception {
 	JobConf conf = new JobConf(PageRank.class);
@@ -128,10 +128,10 @@ public class PageRank {
 	RunningJob job = JobClient.runJob(conf);
 
 	long convergence = job.getCounters().findCounter(Counter.CONVERGENCE_COUNTER).getValue();
-	System.out.println(convergence);
-	if (convergence == Long.parseLong(numberOfPages)) {
+	if (convergence == oldCount) {
 	    return true;
 	} else {
+	    oldCount = convergence;
 	    return false;
 	}
     }
@@ -168,10 +168,10 @@ public class PageRank {
 	FileSystem fs =  FileSystem.get(new URI(args[1]), conf);
 	PageRank.initialFiles(args[1]);
 	//extract wiki and remove redlinks
-//	//PageRank.parseXml(args[0], outPaths.get("job1Tmp"));
+	PageRank.parseXml(args[0], outPaths.get("job1Tmp"));
 	// wiki adjacency graph generation
-//	PageRank.getAdjacencyGraph(outPaths.get("job1Tmp"), outPaths.get("job2Tmp"));
-//	FileUtil.copyMerge(fs, new Path(outPaths.get("job2Tmp")), fs, new Path(outPaths.get("outlinkRes")), false, conf, "");
+	PageRank.getAdjacencyGraph(outPaths.get("job1Tmp"), outPaths.get("job2Tmp"));
+	FileUtil.copyMerge(fs, new Path(outPaths.get("job2Tmp")), fs, new Path(outPaths.get("outlinkRes")), false, conf, "");
 	// total number of pages
 	PageRank.calTotalPages(outPaths.get("outlinkRes"), outPaths.get("job3Tmp"));
 	FileUtil.copyMerge(fs, new Path(outPaths.get("job3Tmp")), fs, new Path(outPaths.get("nRes")), false, conf, "");
@@ -187,7 +187,7 @@ public class PageRank {
 	    convergence = PageRank.calPageRank(outPaths.get("job4Tmp") + "iter" + count, outPaths.get("job4Tmp") + "iter" + (count + 1));
 	    count++;
 	}
-	String lastIter = "iter" + (count - 1);
+	String lastIter = "iter" + count;
 	// Rank page in the descending order of PageRank
 	PageRank.orderRank(outPaths.get("job4Tmp") + lastIter, outPaths.get("job5Tmp") + lastIter);
 	FileUtil.copyMerge(fs, new Path(outPaths.get("job5Tmp") + lastIter), fs, new Path(outPaths.get("iterRes")), false, conf, "");

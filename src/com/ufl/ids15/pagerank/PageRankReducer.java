@@ -61,7 +61,7 @@ public class PageRankReducer extends MapReduceBase implements
 	}
 	newRank = factor + d * newRank;
 	String rank = String.valueOf(newRank);
-	if (Math.abs(newRank - lastRank) < epsilon) {
+	if (Math.abs(newRank - lastRank) <= epsilon) {
 	    reporter.getCounter(Counter.CONVERGENCE_COUNTER).increment(1);
 	}
 	outputValue.set(rank + adjacency);
