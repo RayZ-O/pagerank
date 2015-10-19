@@ -1,4 +1,4 @@
-package com.ufl.ids15.pagerank;
+package edu.ufl.ids15.pagerank;
 
 import java.io.IOException;
 
